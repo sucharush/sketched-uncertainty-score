@@ -38,19 +38,17 @@ class RGSArnoldi(KrylovSolverBase):
             # Project out previous directions using RGS (G = [p1, ..., p_{i}])
             G = np.column_stack(P)
             y = self._solve_least_squares(G, p)
-            q_proj = np.column_stack(Q) @ y
-            p_proj = G @ y
+            q_proj = w - np.column_stack(Q) @ y
+            p_proj = self.sketcher.apply_sketch(q_proj)
 
-            w -= q_proj
-            p -= p_proj
-
-            beta = np.linalg.norm(p)
+            beta = np.linalg.norm(p_proj)
+            
             if beta < 1e-12:
                 self.custom_print(f"RGSArnoldi: Early termination after {i+1} steps.")
                 break
 
-            q_next = w / beta  # beta = h_{i+1, i}
-            p_next = self.sketcher.apply_sketch(q_next)
+            q_next = q_proj / beta  # beta = h_{i+1, i}
+            p_next = p_proj / beta
 
             Q.append(q_next)
             P.append(p_next)

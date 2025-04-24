@@ -2,7 +2,7 @@ import numpy as np
 from solvers.lanczos_base import LanczosBase
 
 class VanillaLanczos(LanczosBase):
-    def __init__(self, G_matvec, p, reorth=False, verbose=False):
+    def __init__(self, G_matvec, p, reorth=True, verbose=False):
         super().__init__(G_matvec, p, verbose)
         self.reorth = reorth
 
@@ -15,6 +15,7 @@ class VanillaLanczos(LanczosBase):
 
         if self.reorth:
             V = [q]
+        # V = [q]
 
         for i in range(num_steps):
             w = self.G_matvec(q)
@@ -27,23 +28,28 @@ class VanillaLanczos(LanczosBase):
             if self.reorth:
                 for _ in range(1):
                     w = self._reorthogonalize(np.column_stack(V), w)
+                    # print("orth check:", np.linalg.norm(np.column_stack(V).T @ w))
 
             beta_i = np.linalg.norm(w)
+            
             if beta_i < 1e-12:
                 self.custom_print(f"   High-memory Lanczos: Early termination after {i} iterations.")
                 break
-
             alphas.append(alpha_i)
             betas.append(beta_i)
+            
+
 
             q_prev, q = q, w / beta_i
             if self.reorth:
                 V.append(q)
+            # V.append(q)
 
         if self.reorth:
             self.V = np.column_stack(V)[:, : len(alphas)]
         else:
             self.V = None  # no full basis stored
+        # self.V = np.column_stack(V)[:, : len(alphas)]
         self.alphas = alphas
         self.betas = betas
         
