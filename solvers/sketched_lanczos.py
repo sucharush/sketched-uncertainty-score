@@ -39,7 +39,7 @@ class SketchedLanczos(LanczosBase):
                 )
 
             # run high-memory lanczos
-            self.hm_lanczos = VanillaLanczos(self.G_matvec, self.p, reorth=True)
+            self.hm_lanczos = VanillaLanczos(self.G_matvec, self.p, reorth=True, verbose=self.verbose)
             self.hm_lanczos.run(num_steps=pre_steps)
 
             # eigenvalue deflation

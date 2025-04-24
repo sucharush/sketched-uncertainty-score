@@ -53,14 +53,14 @@ class RGSArnoldi(KrylovSolverBase):
             Q.append(q_next)
             P.append(p_next)
 
-            col = np.zeros(i + 2)
+            col = np.zeros(i + 2, dtype=np.complex128)
             col[:i + 1] = y
             col[i + 1] = beta
             H.append(col)
         # print(len(H), len(H[-1]))
         # print(len(P), len(P[-1]))
-        print(P[-1])
-        print(Q[-1])
+        # print(P[-1])
+        # print(Q[-1])
         self.V = np.column_stack(P)[:, : len(H)]  # align with H dim
         self._H_cols = H
 
