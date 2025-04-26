@@ -32,6 +32,9 @@ ENV/
 
 # Project specific settings
 playground*.ipynb
+post_hoc.ipynb
 # pg2*.ipynb
+
 # datasets
 MNIST/
+data/

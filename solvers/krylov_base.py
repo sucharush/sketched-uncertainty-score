@@ -35,7 +35,7 @@ class KrylovSolverBase(ABC):
         pass
 
     @abstractmethod
-    def get_basis(self, ortho=True):
+    def get_basis(self, k = None, ortho=True):
         "Basis U/U_S in the paper — essentially from the Ritz vectors"
         pass
 

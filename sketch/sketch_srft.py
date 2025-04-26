@@ -18,13 +18,6 @@ class SRFTSketcher(Sketcher):
             fft_size = self.p
         self._subset = np.sort(np.random.choice(fft_size, self.s, replace=False))
     
-    def set_p(self, p):
-        super().set_p(p)
-        self._initialize_srft()
-    
-    def set_s(self, s):
-        super().set_s(s)
-        self._initialize_srft()
 
     def apply_sketch(self, x):
 
