@@ -2,9 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from lanczos.lanczos_hm import HighMemoryLanczos
-from lanczos.lanczos_sketch import SketchedLanczos
-from lanczos.lanczos_randomized import RandomizedLanczos
+from sketch.sketch_base import Sketcher
+from solvers.vanilla_lanczos import VanillaLanczos
+from solvers.sketched_lanczos import SketchedLanczos
+from solvers.randomized_arnoldi import RGSArnoldi
 
 def create_verbose_function(verbose):
     """Return a print function that only outputs if verbose is True."""
@@ -84,7 +85,7 @@ def create_G_matvec(n, sig_ev = 20):
     return G_matvec
 
 
-def plot_results(G_matvec, p, k, sketch, k0=5, outer_runs=10, num_samples=20, with_plot=False, verbose=True):
+def plot_results(G_matvec, p, k, sketch: Sketcher, k0=5, outer_runs=10, num_samples=20, with_plot=False, verbose=True):
     """
 
     Args:
@@ -122,29 +123,30 @@ def plot_results(G_matvec, p, k, sketch, k0=5, outer_runs=10, num_samples=20, wi
     for i in range(outer_runs):
         custom_print(f"Running {i+1} ...")
         # (A) HighMemoryLanczos
-        hlz = HighMemoryLanczos(G_matvec=G_matvec, p=p, verbose=verbose)
+        hlz = VanillaLanczos(G_matvec=G_matvec, p=p, reorth=True, verbose=verbose)
         custom_print("   ------------Running High-memory Lanczos--------------")
         hlz.run(num_steps=k)
-        U0, _ = hlz.get_top_eigenpairs()  # store for repeated use
+        U0 = hlz.get_basis()  # store for repeated use
         # print(np.diag(_))
 
         # (B) SketchedLanczos
         slz = SketchedLanczos(G_matvec=G_matvec, p=p, sketch=sketch,verbose=verbose)
         # Q = slz.sketched_lanczos(k=k)
         custom_print("   --------------Running Sketched Lanczos---------------")
-        slz.sketched_lanczos(k=k)
-        Q, _ = slz.get_top_eigenpairs()
+        slz.run(num_steps=k)
+        Q = slz.get_basis()
         # print("Q", type(Q))
         custom_print("   -------Running Preconditioned Sketched Lanczos-------")
-        Q_precond = slz.preconditioned_version(k=k, k0=k0)
-        custom_print("   --------------Running Lanczos + Sketch---------------")
-        Q_postsketch = slz.run_full_then_sketch(num_steps_full=k)
+        slz.run(num_steps=k, pre_steps=k0)
+        Q_precond = slz.get_basis()
+        # custom_print("   --------------Running Lanczos + Sketch---------------")
+        # Q_postsketch = slz.run_full_then_sketch(num_steps_full=k)
         
         # (C) Randomized Lanczos
-        rlz = RandomizedLanczos(G_matvec=G_matvec, p=p, sketch=sketch, verbose=verbose)
-        custom_print("   -------------Running Randomized Lanczos--------------")
+        rlz = RGSArnoldi(G_matvec=G_matvec, p=p, sketch=sketch, verbose=verbose)
+        custom_print("   -------------Running Randomized Arnoldi--------------")
         rlz.run(num_steps=k)
-        U_small, _ = rlz.get_top_eigenpairs()  # store for repeated use
+        U_small = rlz.get_basis()  # store for repeated use
 
         high_vals = []
         sketch_vals = []
@@ -167,8 +169,8 @@ def plot_results(G_matvec, p, k, sketch, k0=5, outer_runs=10, num_samples=20, wi
             # 3) Preconditioned
             precond_vals.append(np.linalg.norm(Q_precond.T @ v_sketched))
 
-            # 4) Post-sketch measure
-            post_sketch_vals.append(np.linalg.norm(Q_postsketch.T @ v_sketched))
+            # # 4) Post-sketch measure
+            # post_sketch_vals.append(np.linalg.norm(Q_postsketch.T @ v_sketched))
             
             # 5) Randomized
             rd_lcz_vals.append(np.linalg.norm(U_small.T @ v_sketched))            
@@ -193,7 +195,7 @@ def plot_results(G_matvec, p, k, sketch, k0=5, outer_runs=10, num_samples=20, wi
         #     [high, sketched, precond, post_sketch, rd_lcz],
         # )
         zip(
-            ["High Memory", "Sketched", "Preconditioned", "Randomized Lanczos"],
+            ["High Memory", "Sketched", "Preconditioned", "Randomized Arnoldi"],
             [high, sketched, precond, rd_lcz],
         )
     ):
@@ -251,15 +253,15 @@ def calculate_gaps(df):
     # Calculate the differences from 'High Memory'
     pivot_df['Error Sketched'] = np.abs(pivot_df['High Memory'] - pivot_df['Sketched'])
     pivot_df['Error Preconditioned'] = np.abs(pivot_df['High Memory'] - pivot_df['Preconditioned'])
-    pivot_df['Error Post Sketched'] = np.abs(pivot_df['High Memory'] - pivot_df['Post Sketched'])
-    pivot_df['Error Randomized Lanczos'] = np.abs(pivot_df['High Memory'] - pivot_df['Randomized Lanczos'])
+    # pivot_df['Error Post Sketched'] = np.abs(pivot_df['High Memory'] - pivot_df['Post Sketched'])
+    pivot_df['Error Randomized Arnoldi'] = np.abs(pivot_df['High Memory'] - pivot_df['Randomized Arnoldi'])
 
     # Initialize result dictionary
     results = {}
 
     # Calculate mean and std of these gaps and format results
     # for method in ['Sketched', 'Preconditioned', 'Post Sketched', 'Randomized Lanczos']:
-    for method in ['Sketched', 'Preconditioned', 'Randomized Lanczos']:
+    for method in ['Sketched', 'Preconditioned', 'Randomized Arnoldi']:
         gap_key = f"Error {method}"
         mean_gap = pivot_df[gap_key].mean()
         # print(mean_gap)
@@ -280,22 +282,22 @@ def eigen_diag_desc(matvec, p, top_k):
 
 def collect_ritz_values(p, k, G_matvec, sketch, verbose):
     # (A) HighMemoryLanczos
-    hlz = HighMemoryLanczos(G_matvec=G_matvec, p=p, verbose=verbose)
+    hlz = VanillaLanczos(G_matvec=G_matvec, p=p, verbose=verbose)
     hlz.run(num_steps=k)
-    U0, L0 = hlz.get_top_eigenpairs()  # store for repeated use
+    _, L0 = hlz.get_top_ritzpairs(return_vectors=True)  # store for repeated use
     # print(np.diag(_))
 
     # (B) SketchedLanczos
     slz = SketchedLanczos(G_matvec=G_matvec, p=p, sketch=sketch,verbose=verbose)
     # Q = slz.sketched_lanczos(k=k)
-    slz.sketched_lanczos(k=k)
-    Q, L_sketched = slz.get_top_eigenpairs()
+    slz.run(num_steps=k, pre_steps=0)
+    _, L_sketched = slz.get_top_ritzpairs(return_vectors=True)
     # print("Q", type(Q))
 
     # (C) Randomized Lanczos
-    rlz = RandomizedLanczos(G_matvec=G_matvec, p=p, sketch=sketch, verbose=verbose)
+    rlz = RGSArnoldi(G_matvec=G_matvec, p=p, sketch=sketch, verbose=verbose)
     rlz.run(num_steps=k)
-    U_small, L_randomized = rlz.get_top_eigenpairs()  # store for repeated use
+    _, L_randomized = rlz.get_top_ritzpairs()  # store for repeated use
     
     real_eigens = eigen_diag_desc(G_matvec, p=p, top_k=k)
     # print(real_eigens)

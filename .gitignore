@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 # Distribution / packaging
 *.egg-info/
@@ -31,5 +32,9 @@ ENV/
 
 # Project specific settings
 playground*.ipynb
+post_hoc.ipynb
 # pg2*.ipynb
+
+# datasets
 MNIST/
+data/

@@ -11,13 +11,6 @@ class GaussianSketcher(Sketcher):
     def _initialize_gaussian(self):
         self.S = np.random.normal(size=(self.s, self.p)) / np.sqrt(self.s)
     
-    def set_p(self, p):
-        super().set_p(p)
-        self._initialize_gaussian()
-        
-    def set_s(self, s):
-        super().set_s(s)
-        self._initialize_gaussian()
 
     def apply_sketch(self, x):
 
