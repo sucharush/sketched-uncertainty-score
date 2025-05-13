@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 
 class BaseEvaluator(ABC):
-    def __init__(self, model, device=None):
+    def __init__(self, model, device=None, flatten = True):
         self.model = model.to(device or next(model.parameters()).device)
         self.device = device or next(model.parameters()).device
+        self.flatten = flatten
 
     @abstractmethod
     def compute_score(self, x):
@@ -21,13 +22,18 @@ class BaseEvaluator(ABC):
     def compute_batch(self, X):
         scores = []
         for x in X:
-            x = x.view(-1)
+            if self.flatten:
+                x = x.view(-1)
+            # normalize to reduce scale bias
+            x = (x - x.mean()) / (x.std() + 1e-8)
             scores.append(self.compute_score(x))
         return np.array(scores)
 
-    def compute_auroc(self, X_id, X_ood):
+    def compute_auroc(self, X_id, X_ood, plot = False):
         id_scores = self.compute_batch(X_id)
         ood_scores = self.compute_batch(X_ood)
+        if plot:
+            self.plot_histogram(id_scores, ood_scores)
         return self._compute_auroc(id_scores, ood_scores)
 
     def _compute_auroc(self, id_scores, ood_scores):

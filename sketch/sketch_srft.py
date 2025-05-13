@@ -2,7 +2,7 @@ from sketch.sketch_base import Sketcher
 import numpy as np
 
 class SRFTSketcher(Sketcher):
-    def __init__(self, p, s=256, rfft=True):
+    def __init__(self, p, s=256, rfft=False):
         self.p = p
         self.s = s
         self.rfft = rfft

@@ -6,9 +6,13 @@ import numpy as np
 from sketch.sketch_base import Sketcher
 
 class SLUEvaluator(BaseEvaluator):
-    def __init__(self, model, Us, sketch: Sketcher, device=None):
-        super().__init__(model, device)
-        if isinstance(Us, np.ndarray):
+    def __init__(self, model, Us, sketch: Sketcher, device=None, flatten = True):
+        super().__init__(model, device, flatten)
+        # if isinstance(Us, np.ndarray):
+        #     Us = torch.from_numpy(Us).float()
+        if np.iscomplexobj(Us):
+            Us = torch.from_numpy(Us.astype(np.complex64))  # or complex128 if needed
+        else:
             Us = torch.from_numpy(Us).float()
         self.Us = Us.to(self.device)
         self.sketch = sketch

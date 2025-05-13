@@ -7,59 +7,50 @@ from solvers.vanilla_lanczos import VanillaLanczos
 from solvers.sketched_lanczos import SketchedLanczos
 from solvers.randomized_arnoldi import RGSArnoldi
 
-def create_verbose_function(verbose):
-    """Return a print function that only outputs if verbose is True."""
-    def verbose_print(*args, **kwargs):
-        """Print arguments if verbose is enabled."""
-        if verbose:
-            print(*args, **kwargs)
-    return verbose_print
+import numpy as np
+from scipy.linalg import qr
 
-def create_poly_decay_matvec(n, R=10, d=1):
+def create_poly_decay_matvec(n, R=10, d=1, seed=44):
     """
-    Create a matrix-vector product function for a polynomial decay matrix of size n x n.
+    Create a symmetric matrix-vector product function A(x) = Q Λ Qᵗ x
+    where Λ is a polynomial decay diagonal, and Q is orthogonal.
 
     Parameters
     ----------
     n : int
-        Size of the matrix (and vector).
-    R : int, optional
-        Number of leading 1s on the diagonal. Defaults to 10.
-    d : float, optional
-        Decay parameter. Defaults to 1.
+        Matrix size.
+    R : int
+        Number of leading large diagonal entries.
+    d : float
+        Polynomial decay exponent.
+    seed : int, optional
+        Random seed for reproducibility.
 
     Returns
     -------
     function
-        A function that takes a vector x of shape (n,) and returns the product of
-        the poly decay matrix and x.
+        A function matvec(x) that applies A = Q Λ Qᵗ to a vector x.
     """
-    # Precompute the diagonal values once
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    # 1. Construct polynomial decay spectrum
     diag_vals = np.ones(n)
     diag_vals[:R] = np.arange(1, R+1)[::-1]
-    for i in range(R, n):
-        diag_vals[i] = float(i - R + 2) ** (-d)
+    diag_vals[R:] = np.array([float(i - R + 2) ** (-d) for i in range(R, n)])
 
-    # Define the matrix-vector product function using the precomputed diagonal
-    def poly_decay_matvec(x):
-        """
-        Matrix-vector product with a precomputed diagonal of a poly decay matrix.
+    # 2. Generate orthogonal matrix Q via QR decomposition
+    Q, _ = qr(np.random.randn(n, n))  # Q @ Q.T = I
 
-        Parameters
-        ----------
-        x : np.ndarray of shape (n,)
-            The input vector to be multiplied by the poly-decay matrix.
-
-        Returns
-        -------
-        y : np.ndarray of shape (n,)
-            The resulting product of poly_decay_matrix @ x
-        """
+    # 3. Define the matvec: A(x) = Q @ Λ @ Q.T @ x
+    def matvec(x):
         if len(x) != n:
             raise ValueError(f"Vector x must have length {n}.")
-        return diag_vals * x
-    
-    return poly_decay_matvec
+        return Q @ (diag_vals * (Q.T @ x))
+
+    return matvec, np.sort(diag_vals)[::-1]
+
 
 def create_G_matvec(n, sig_ev = 20):
     """
@@ -155,7 +146,7 @@ def plot_results(G_matvec, p, k, sketch: Sketcher, k0=5, outer_runs=10, num_samp
         rd_lcz_vals = []
 
         for _ in range(num_samples):
-            v = np.random.normal(size=(p,))
+            v = np.random.normal(size=(p,)).astype(np.complex128)
             v = v / np.linalg.norm(v)
 
             # 1) High memory measure
@@ -163,7 +154,7 @@ def plot_results(G_matvec, p, k, sketch: Sketcher, k0=5, outer_runs=10, num_samp
 
             # 2) Sketched
             v_sketched = sketch.apply_sketch(v)
-            # print(type(Q), type(v_sketched))
+            # print(Q.shape, Q_precond.shape, v_sketched.shape)
             sketch_vals.append(np.linalg.norm(Q.T @ v_sketched))
 
             # 3) Preconditioned
@@ -232,6 +223,83 @@ def plot_results(G_matvec, p, k, sketch: Sketcher, k0=5, outer_runs=10, num_samp
         plt.show()
     return df
 
+def aggregate_plot_results(df, num_samples):
+    """
+    Collapse the original output of `plot_results()` by averaging over samples
+    for each method and outer run.
+
+    Returns a DataFrame with one row per (Method, Run).
+    """
+    df = df.copy()
+    df['Run'] = df.groupby('Method').cumcount() // num_samples
+    summary_df = df.groupby(['Method', 'Run']).agg(
+        Value=('Value', 'mean')
+    ).reset_index()
+    return summary_df
+
+def run_experiment_grid(
+    p_list,
+    k_list,
+    s_list=None,
+    d_list=[1.0],
+    outer_runs=5,
+    num_samples=20,
+    sketch_class=None,  # a constructor like: lambda p, s → sketcher instance
+    verbose=False
+):
+    """
+    Run projection experiments across (p, k, d) grid and return summarized results.
+
+    Returns:
+        all_df : pd.DataFrame
+            Columns: ['Method', 'Run', 'Value', 'p', 'k', 'd']
+    """
+    results = []
+    s_list = [2 * x for x in k_list] if s_list is None else s_list
+    # print(f"Sketch size: {s_list}")
+    for d in d_list:
+        for p in p_list:
+            for k,s in zip(k_list, s_list):
+                # s=100
+                # s = s
+                run_id = f"p={p}_k={k}_s={s}_d={d}"
+                print(f"Running: {run_id}")
+
+                # 1. Matrix-vector product
+                G_matvec, eigvals = create_poly_decay_matvec(n=p, d=d, seed=42)
+
+                # 2. Sketcher
+                sketch = sketch_class(p=p, s=s, rfft = False) if sketch_class else None
+
+                # 3. Run projection experiment
+                df = plot_results(
+                    G_matvec=G_matvec,
+                    p=p,
+                    k=k,
+                    sketch=sketch,
+                    k0=5,
+                    outer_runs=outer_runs,
+                    num_samples=num_samples,
+                    with_plot=False,
+                    verbose=verbose
+                )
+
+                # 4. Aggregate over samples
+                df_summary = aggregate_plot_results(df, num_samples=num_samples)
+
+                # 5. Attach metadata
+                df_summary["p"] = p
+                df_summary["k"] = k
+                df_summary["s"] = s
+                df_summary["d"] = d
+                df_summary["run_id"] = run_id
+
+                results.append(df_summary)
+
+    all_df = pd.concat(results, ignore_index=True)
+    return all_df
+
+
 def calculate_gaps(df):
     """
     Calculate the average gaps between the 'High Memory' method and other methods,
@@ -276,11 +344,11 @@ def calculate_gaps(df):
 
     return results
 
-def eigen_diag_desc(matvec, p, top_k):
-    eigens = matvec(np.ones(p))[:top_k]
+def eigen_diag_desc(real_eigens, top_k):
+    eigens = real_eigens[:top_k]
     return eigens
 
-def collect_ritz_values(p, k, G_matvec, sketch, verbose):
+def collect_ritz_values(p, k, G_matvec, real_eigens, sketch, verbose):
     # (A) HighMemoryLanczos
     hlz = VanillaLanczos(G_matvec=G_matvec, p=p, verbose=verbose)
     hlz.run(num_steps=k)
@@ -299,7 +367,7 @@ def collect_ritz_values(p, k, G_matvec, sketch, verbose):
     rlz.run(num_steps=k)
     _, L_randomized = rlz.get_top_ritzpairs()  # store for repeated use
     
-    real_eigens = eigen_diag_desc(G_matvec, p=p, top_k=k)
+    real_eigens = eigen_diag_desc(real_eigens, top_k=k)
     # print(real_eigens)
     return L0, L_sketched, L_randomized, real_eigens
 
@@ -337,13 +405,14 @@ def plot_eigenvalues(L0, L_sketched, L_randomized, real_eigens, ylog = False):
     plt.figure(figsize=(8, 6))
     
     # Plot each set with distinct markers and colors
-    plt.scatter(indices_L0, L0_sorted, marker='x', color="green", label='High Memory Ritz')
-    plt.scatter(indices_L_sketched, L_sketched_sorted, marker='x', color='red', label='Sketched Ritz')
-    plt.scatter(indices_L_randomized, L_randomized_sorted, marker='x', color='blue', label='Randomized Ritz')
+    plt.scatter(indices_L0, L0_sorted, marker='x', color="green", label='High Memory Lanczos')
+    plt.scatter(indices_L_sketched, L_sketched_sorted, marker='x', color='red', label='Sketched Lanczos')
+    plt.scatter(indices_L_randomized, L_randomized_sorted, marker='x', color='blue', label='Randomized Arnoldi')
     plt.scatter(indices_real, real_eigens_sorted, marker='o', facecolors='none', edgecolors='black', label='True Eigenvalues')
-    
+    plt.xticks(np.arange(len(real_eigens_sorted)))  # force integer ticks
+
     plt.xlabel('Index (sorted in descending order)')
-    plt.ylabel('Eigenvalue')
+    plt.ylabel('Eigenvalue (Ritz value)')
     plt.title('Comparison of Computed and True Eigenvalues')
     plt.legend()
     plt.grid(True)
