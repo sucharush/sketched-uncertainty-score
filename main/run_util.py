@@ -4,6 +4,8 @@ from uncertainty.ggn import GGNMatVecOperator
 from uncertainty.evaluation_slu import SLUEvaluator
 from sketch.sketch_srft import SRFTSketcher
 from solvers.sketched_lanczos import SketchedLanczos
+from solvers.vanilla_lanczos import VanillaLanczos
+from solvers.randomized_arnoldi import RGSArnoldi
 import os
 import numpy as np
 
@@ -40,6 +42,29 @@ def load_id_train_subset(name, flatten=True, device="cpu"):
 
     return X.to(device), Y.to(device)
 
+def build_solver(method, ggn: GGNMatVecOperator, num_params, steps):
+    s = 2 * steps
+    if method == "sl":
+        sketch = SRFTSketcher(p=num_params, s=s)
+        return SketchedLanczos(ggn.numpy_interface, p=num_params, sketch=sketch), sketch
+    elif method == "ra":
+        sketch = SRFTSketcher(p=num_params, s=s)
+        return RGSArnoldi(ggn.numpy_interface, p=num_params, sketch=sketch), sketch
+    elif method == "ll":
+        return VanillaLanczos(ggn.numpy_interface, p=num_params, reorth=False, store_full_basis=True), None
+    elif method == "hl":
+        return VanillaLanczos(ggn.numpy_interface, p=num_params, reorth=True), None
+    else:
+        raise ValueError(f"Unknown method: {method}")
+# solver_config.py
+SOLVER_MAP = {
+    "sl": "sketched Lanczos",
+    "ra": "randomized Arnoldi",
+    "ll": "low-memory Lanczos",
+    "hl": "high-memory Lanczos"
+}
+
+
 def run_experiment(config):
     # === Setup model ===
     device = torch.device(config.get("device", "cpu"))
@@ -61,9 +86,13 @@ def run_experiment(config):
     # === GGN + Sketch + Lanczos ===
     ggn = GGNMatVecOperator(model, train_X, train_Y, device=device)
     num_params = sum(p.numel() for p in model.parameters())
-    s = 2 * config["steps"]
-    sketch = SRFTSketcher(p=num_params, s=s)
-    solver = SketchedLanczos(ggn.numpy_interface, p=num_params, sketch=sketch)
+    # s = 2 * config["steps"]
+    # sketch = SRFTSketcher(p=num_params, s=s)
+    # solver = SketchedLanczos(ggn.numpy_interface, p=num_params, sketch=sketch)
+    # solver.run(num_steps=config["steps"])
+    # Us = solver.get_basis()
+    # evaluator = SLUEvaluator(model, Us, sketch, device=config["device"], flatten=config["flatten"])
+    solver, sketch = build_solver(config["method"], ggn, num_params, config["steps"])
     solver.run(num_steps=config["steps"])
     Us = solver.get_basis()
     evaluator = SLUEvaluator(model, Us, sketch, device=config["device"], flatten=config["flatten"])

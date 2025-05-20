@@ -7,7 +7,7 @@ from solvers.vanilla_lanczos import VanillaLanczos
 from solvers.sketched_lanczos import SketchedLanczos
 from solvers.randomized_arnoldi import RGSArnoldi
 
-from synthetic_data.matrix_factory import PolyDecayMatrix 
+from synthetic_examples.synthetic_data.matrix_factory import PolyDecayMatrix 
 
 # def plot_results(
 #     G_matvec,
@@ -217,6 +217,8 @@ def run_experiment_grid(
     outer_runs=5,
     num_samples=20,
     sketch_class=None,
+    matrix_class = PolyDecayMatrix,
+    R = 20,
     verbose=False
 ):
     """
@@ -250,7 +252,7 @@ def run_experiment_grid(
     results = []
     s_list = [2 * k for k in k_list] if s_list is None else s_list
     # 1. Generate synthetic matrix and matvec
-    mat = PolyDecayMatrix(n=p, d=d, seed=42)
+    mat = matrix_class(n=p, R=R, d=d, seed=42)
     G_matvec = mat.get_matvec()
 
     for k, s in zip(k_list, s_list):
@@ -296,6 +298,8 @@ def run_projection_sweep_with_fixed_v(
     k_list,
     s_list,
     sketch_class,
+    R = 20,
+    matrix_class = PolyDecayMatrix,
     outer_runs=10,
     methods=("high", "sketched", "randomized"),
     verbose=False
@@ -328,7 +332,7 @@ def run_projection_sweep_with_fixed_v(
         Columns: ['Method', 'Run', 'Value', 'k', 's']
     """
     # Create matrix and test vectors
-    mat = PolyDecayMatrix(n=p, d=d)
+    mat = matrix_class(n=p,R=R, d=d)
     G_matvec = mat.get_matvec()
     v_list = [np.random.randn(p).astype(np.complex128) for _ in range(outer_runs)]
     v_list = [v / np.linalg.norm(v) for v in v_list]

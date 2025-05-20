@@ -3,6 +3,7 @@ import torch.nn.functional as F
 # from functorch import make_functional, jvp, vjp, vmap
 from functorch import  make_functional
 from torch.func import vmap, grad, jvp, vjp
+import numpy as np
 
 
 class GGNMatVecOperator:
@@ -63,7 +64,24 @@ class GGNMatVecOperator:
         self._ggn_matvec_fn = ggn_matvec
 
     
+    # def numpy_interface(self, v_np):
+    #     v_torch = torch.from_numpy(v_np).float().to(self.device)
+    #     Gv = self._ggn_matvec_fn(v_torch)
+    #     return Gv.detach().cpu().numpy()
     def numpy_interface(self, v_np):
-        v_torch = torch.from_numpy(v_np).float().to(self.device)
-        Gv = self._ggn_matvec_fn(v_torch)
-        return Gv.detach().cpu().numpy()
+        if np.iscomplexobj(v_np):
+            
+            v_real = torch.from_numpy(v_np.real.astype(np.float32)).to(self.device)
+            v_imag = torch.from_numpy(v_np.imag.astype(np.float32)).to(self.device)
+
+            Gv_real = self._ggn_matvec_fn(v_real).detach()
+            Gv_imag = self._ggn_matvec_fn(v_imag).detach()
+            # Gv linear operator
+            return Gv_real.cpu().numpy() + 1j * Gv_imag.cpu().numpy()
+        else:
+            v_torch = torch.from_numpy(v_np.astype(np.float32)).to(self.device)
+            Gv = self._ggn_matvec_fn(v_torch).detach()
+            return Gv.cpu().numpy()
+
+
+

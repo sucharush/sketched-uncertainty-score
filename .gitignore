@@ -31,11 +31,10 @@ ENV/
 .DS_Store
 
 # Project specific settings
-playground*.ipynb
-post_hoc.ipynb
-# pg2*.ipynb
 *.ipynb
 
-# datasets
+# folders
 MNIST/
 data/
+models/
+*.sh
