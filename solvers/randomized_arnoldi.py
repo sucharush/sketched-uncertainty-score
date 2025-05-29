@@ -65,8 +65,8 @@ class RGSArnoldi(KrylovSolverBase):
         maxlen = max(len(col) for col in self._H_cols)
         self.H = np.column_stack([np.pad(col, (0, maxlen - len(col))) for col in self._H_cols])[:maxlen - 1, :]
 
-    def get_basis(self, ortho=True):
-        U, _ = self.get_top_ritzpairs(return_vectors=True)
+    def get_basis(self, k=None, ortho=True):
+        U, _ = self.get_top_ritzpairs(k=k,return_vectors=True)
         if U is None:
             raise ValueError("No basis stored.")
         if ortho:

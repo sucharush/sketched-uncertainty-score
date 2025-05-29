@@ -32,9 +32,13 @@ ENV/
 
 # Project specific settings
 *.ipynb
+*.csv
+# *.sh
 
 # folders
 MNIST/
 data/
 models/
-*.sh
+ritzs/
+norms/
+configs.py

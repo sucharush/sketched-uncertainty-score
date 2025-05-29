@@ -178,22 +178,19 @@ def plot_eigenvalue_plane(
     show_sub : bool
         Whether to call plt.show() inside the function.
     """
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(8, 3))
 
     def transform(x):
-        return np.log10(np.abs(x.real)) * np.sign(x.real) if x_log else x.real
-
-    # alpha = 0.6
-    # def transform(x):
-    #     # alpha = alpha  # between 0 (heavily compressed) and 1 (no compression)
-    #     return np.sign(x.real) * (np.abs(x.real) ** alpha)
+        # return np.log10(np.abs(x.real)) * np.sign(x.real) if x_log else x.real
+        return x
 
     plt.scatter(
         transform(top_percent(L0)),
         top_percent(L0).imag,
         marker="x",
         color="green",
-        label="High Memory Lanczos",
+        label="Lanczos (with reorth.)",
+        s=50
     )
     plt.scatter(
         transform(top_percent(L_sketched)),
@@ -201,6 +198,7 @@ def plot_eigenvalue_plane(
         marker="+",
         color="red",
         label="Sketched Lanczos",
+        s=48
     )
     plt.scatter(
         transform(top_percent(L_randomized)),
@@ -208,6 +206,7 @@ def plot_eigenvalue_plane(
         marker="1",
         color="blue",
         label="Randomized Arnoldi",
+        s=53
     )
 
     plt.scatter(
@@ -217,6 +216,7 @@ def plot_eigenvalue_plane(
         facecolors="none",
         edgecolors="black",
         label="True Eigenvalues",
+        s=45
     )
     all_real = np.concatenate(
         [L0.real, L_sketched.real, L_randomized.real, real_eigens.real]
@@ -225,7 +225,7 @@ def plot_eigenvalue_plane(
     max_val = np.max(all_real)
     plt.xlim(min_pos - 1e-1, max_val * 1.2)
 
-    plt.ylim(-0.15, 0.15)
+    plt.ylim(-0.1, 0.15)
 
     plt.axhline(0, color="gray", linestyle="--", linewidth=0.5)
     plt.axvline(0, color="gray", linestyle="--", linewidth=0.5)
@@ -233,8 +233,9 @@ def plot_eigenvalue_plane(
     # plt.xlabel(f"$\mathrm{{sign}}(\mathrm{{Re}}(\lambda)) \cdot |\mathrm{{Re}}(\lambda)|^{{{alpha}}}$" if x_log else "Real Part")
     plt.xlabel("Real Part")
     plt.ylabel("Imaginary Part")
-    plt.xscale("symlog")
-    plt.title("Eigenvalues in Complex Plane" + (" (Log-Re)" if x_log else ""))
+    if x_log:
+        plt.xscale("symlog")
+    plt.title("Eigenvalues in Complex Plane")
     plt.legend()
 
     if show_sub:
@@ -333,9 +334,9 @@ def plot_ritz_sweep(
             )
             # L0, Ls, Lr, eigs_k = collect_ritz_values(p, k, G_matvec, true_eigs, sketch, verbose=False)
             plot_eigenvalue_plane(L0, Ls, Lr, eigs_k, x_log=x_log)
-            plt.title(f"Ritz Values: $k={k}$, $s={s}$")
+            plt.title(f"Ritz Values: steps $k={k}$, sketch size $s={s}$")
             if save_dir:
-                fname = os.path.join(save_dir, f"ritz_k{k}_s{s}.png")
+                fname = os.path.join(save_dir, f"ritz_k{k}_s{s}.pdf")
                 plt.savefig(fname, bbox_inches="tight")
             if show:
                 plt.show()

@@ -4,9 +4,11 @@ import torch
 from main.networks import SmallNet, LeNet
 from main.run_util import run_experiment, SOLVER_MAP
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
 
-def run_and_report(model_key, solver, ood_name, n_runs=5):
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
+
+def run_and_report(model_key, solver, steps, ood_name, n_runs=5):
 
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     if model_key == "mlp":
@@ -14,13 +16,13 @@ def run_and_report(model_key, solver, ood_name, n_runs=5):
         model_ckpt = "models/mlp.pt"
         id_dataset = "mnist"
         flatten = True
-        steps = 50
+        default_steps = 50
     elif model_key == "lenet":
         model_fn = lambda: LeNet()
         model_ckpt = "models/lenet.pt"
         id_dataset = "fashion"
         flatten = False
-        steps = 100
+        default_steps = 100
     else:
         raise ValueError(f"Unsupported model: {model_key}")
     if solver not in SOLVER_MAP:
@@ -34,29 +36,45 @@ def run_and_report(model_key, solver, ood_name, n_runs=5):
         "ood_dataset": ood_name.lower(),
         "flatten": flatten,
         "batch_size": 2000,
-        "steps": steps,
+        "steps": steps or default_steps,
         "ood_size": 500,
         "device": device,
-        "method": solver,  
-        "name": f"{model_key.upper()} on {id_dataset.upper()} vs {ood_name.upper()} using basis from {solver_name}"
+        "method": solver,
+        "name": f"{model_key.upper()} on {id_dataset.upper()} vs {ood_name.upper()} using basis from {solver_name}",
     }
-
 
     scores = []
     for i in range(n_runs):
         print(f"\n==== Run {i+1} ====")
         score = run_experiment(config)
         scores.append(score)
-                                                         
+
     mean, std = np.mean(scores), np.std(scores)
     print(f"\n>>> {config['name']} (AUROC over {n_runs} runs): {mean:.4f} ± {std:.4f}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, choices=["mlp", "lenet"])
-    parser.add_argument("--solver", type=str, choices=list(SOLVER_MAP.keys()), default="sl")
-    parser.add_argument("--ood", type=str, required=True, choices=["fashion", "mnist", "kmnist", "rotate"])
+    parser.add_argument(
+        "--solver", type=str, choices=list(SOLVER_MAP.keys()), default="sl"
+    )
+    parser.add_argument(
+        "--steps", type=int, default=None, help="Number of Krylov steps"
+    )
+    parser.add_argument(
+        "--ood",
+        type=str,
+        required=True,
+        choices=["fashion", "mnist", "kmnist", "rotate"],
+    )
     parser.add_argument("--runs", type=int, default=5)
     args = parser.parse_args()
 
-    run_and_report(args.model, args.solver, args.ood, args.runs)
+    run_and_report(
+        model_key=args.model,
+        solver=args.solver,
+        steps=args.steps,
+        ood_name=args.ood,
+        n_runs=args.runs,
+    )

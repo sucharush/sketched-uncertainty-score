@@ -86,15 +86,10 @@ def run_experiment(config):
     # === GGN + Sketch + Lanczos ===
     ggn = GGNMatVecOperator(model, train_X, train_Y, device=device)
     num_params = sum(p.numel() for p in model.parameters())
-    # s = 2 * config["steps"]
-    # sketch = SRFTSketcher(p=num_params, s=s)
-    # solver = SketchedLanczos(ggn.numpy_interface, p=num_params, sketch=sketch)
-    # solver.run(num_steps=config["steps"])
-    # Us = solver.get_basis()
-    # evaluator = SLUEvaluator(model, Us, sketch, device=config["device"], flatten=config["flatten"])
     solver, sketch = build_solver(config["method"], ggn, num_params, config["steps"])
     solver.run(num_steps=config["steps"])
-    Us = solver.get_basis()
+    Us = solver.get_basis(k=int(0.9*config["steps"]))
+    # Us = solver.get_basis()
     evaluator = SLUEvaluator(model, Us, sketch, device=config["device"], flatten=config["flatten"])
     
     # === Load OoD data and AUROC evaluation ===
@@ -107,7 +102,6 @@ def run_experiment(config):
                 batch_size=config["ood_size"], rotate_angle=angle, device=device
             )
             # === AUROC evaluation ===
-            # id_X = id_X[:config["ood_size"]]  # ensure same length
             auc = evaluator.compute_auroc(id_X, ood_X_angle)
             aucs.append(auc)
             print(f"[{config['name']}] Rotation ({angle}°) AUROC = {auc:.4f}")

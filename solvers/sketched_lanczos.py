@@ -39,7 +39,9 @@ class SketchedLanczos(LanczosBase):
                 )
 
             # run high-memory lanczos
-            self.hm_lanczos = VanillaLanczos(self.G_matvec, self.p, reorth=True, verbose=self.verbose)
+            self.hm_lanczos = VanillaLanczos(
+                self.G_matvec, self.p, reorth=True, verbose=self.verbose
+            )
             self.hm_lanczos.run(num_steps=pre_steps)
 
             # eigenvalue deflation
@@ -94,7 +96,7 @@ class SketchedLanczos(LanczosBase):
         #     self.G_matvec = original_matvec
         self.sketched_hm_basis = sketched_hm_basis
 
-    def get_basis(self, ortho=True):
+    def get_basis(self, k=None, ortho=True):
         """
         Returns the full basis for preconditioned version.
 
@@ -115,7 +117,8 @@ class SketchedLanczos(LanczosBase):
             U = np.hstack((SU0, Us))
         else:
             U = Us
-
+        if k is not None and k < U.shape[1]:
+            U = U[:, :k]
         if ortho:
             U, _ = np.linalg.qr(U, mode="reduced")
 

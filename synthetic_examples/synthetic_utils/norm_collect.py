@@ -9,97 +9,6 @@ from solvers.randomized_arnoldi import RGSArnoldi
 
 from synthetic_examples.synthetic_data.matrix_factory import PolyDecayMatrix 
 
-# def plot_results(
-#     G_matvec,
-#     p,
-#     k,
-#     sketch: Sketcher,
-#     k0=5,
-#     outer_runs=10,
-#     num_samples=10,
-#     methods=("high", "sketched", "precond", "randomized"),
-#     v = None,
-#     with_plot=False,
-#     verbose=True
-# ):
-#     def create_verbose_function(verbose):
-#         def verbose_print(*args, **kwargs):
-#             if verbose:
-#                 print(*args, **kwargs)
-#         return verbose_print
-
-#     custom_print = create_verbose_function(verbose)
-
-#     data = []
-
-#     for i in range(outer_runs):
-#         custom_print(f"Running outer iteration {i+1}/{outer_runs}...")
-
-#         if "high" in methods:
-#             hlz = VanillaLanczos(G_matvec=G_matvec, p=p, reorth=True, verbose=verbose)
-#             hlz.run(num_steps=k)
-#             U0 = hlz.get_basis()
-#         if "sketched" in methods or "precond" in methods:
-#             slz = SketchedLanczos(G_matvec=G_matvec, p=p, sketch=sketch, verbose=verbose)
-#             slz.run(num_steps=k)
-#             Q = slz.get_basis()
-#         if "precond" in methods:
-#             slz.run(num_steps=k, pre_steps=k0)
-#             Q_precond = slz.get_basis()
-#         if "randomized" in methods:
-#             rlz = RGSArnoldi(G_matvec=G_matvec, p=p, sketch=sketch, verbose=verbose)
-#             rlz.run(num_steps=k)
-#             U_small = rlz.get_basis()
-
-#         for sample_id in range(num_samples):
-#             if not v:
-#                 v = np.random.normal(size=(p,)).astype(np.complex128)
-#             v = v.astype(np.complex128)
-#             v = v / np.linalg.norm(v)
-#             v_sketched = sketch.apply_sketch(v)
-
-#             if "high" in methods:
-#                 data.append({
-#                     "Method": "High Memory",
-#                     "Sample": sample_id,
-#                     "Value": np.linalg.norm(U0.T @ v)
-#                 })
-#             if "sketched" in methods:
-#                 data.append({
-#                     "Method": "Sketched",
-#                     "Sample": sample_id,
-#                     "Value": np.linalg.norm(Q.T @ v_sketched)
-#                 })
-#             if "precond" in methods:
-#                 data.append({
-#                     "Method": "Preconditioned",
-#                     "Sample": sample_id,
-#                     "Value": np.linalg.norm(Q_precond.T @ v_sketched)
-#                 })
-#             if "randomized" in methods:
-#                 data.append({
-#                     "Method": "Randomized Arnoldi",
-#                     "Sample": sample_id,
-#                     "Value": np.linalg.norm(U_small.T @ v_sketched)
-#                 })
-
-#     df = pd.DataFrame(data)
-
-#     if with_plot:
-#         plt.figure()
-#         sns.lineplot(
-#             data=df, x="Sample", y="Value", hue="Method", style="Method",
-#             errorbar="sd", err_style="band",
-#             markers=["x"]*len(methods), dashes=False, err_kws={"alpha": 0.2}
-#         )
-#         plt.title("Projection Norm vs Sample")
-#         plt.xlabel("Sample")
-#         plt.ylabel("Norm Value")
-#         plt.legend()
-#         plt.grid()
-#         plt.show()
-
-#     return df
 
 def plot_results(
     G_matvec,
@@ -140,31 +49,31 @@ def plot_results(
         v_sketched = sketch.apply_sketch(v)
 
         custom_print(f"Run {run_id+1}/{outer_runs}")
-
+        num_col = int(0.9*k)
         if "high" in methods:
-            hlz = VanillaLanczos(G_matvec=G_matvec, p=p, reorth=True, verbose=False)
+            hlz = VanillaLanczos(G_matvec=G_matvec, p=p, reorth=False, verbose=False, store_full_basis=True)
             hlz.run(num_steps=k)
-            U0 = hlz.get_basis()
+            U0 = hlz.get_basis(k=num_col)
             val = np.linalg.norm(U0.T @ v)
-            data.append({"Method": "High Memory", "Value": val, "Run": run_id})
+            data.append({"Method": "Lanczos (w/o reorth.)", "Value": val, "Run": run_id})
 
         if "sketched" in methods or "precond" in methods:
             slz = SketchedLanczos(G_matvec=G_matvec, p=p, sketch=sketch, verbose=False)
-            slz.run(num_steps=k)
-            Q = slz.get_basis()
             if "sketched" in methods:
+                slz.run(num_steps=k)
+                Q = slz.get_basis(k=num_col)
                 val = np.linalg.norm(Q.T @ v_sketched)
-                data.append({"Method": "Sketched", "Value": val, "Run": run_id})
+                data.append({"Method": "Sketched Lanczos", "Value": val, "Run": run_id})
             if "precond" in methods:
                 slz.run(num_steps=k, pre_steps=k0)
-                Q_precond = slz.get_basis()
+                Q_precond = slz.get_basis(k=num_col)
                 val = np.linalg.norm(Q_precond.T @ v_sketched)
                 data.append({"Method": "Preconditioned", "Value": val, "Run": run_id})
 
         if "randomized" in methods:
             rlz = RGSArnoldi(G_matvec=G_matvec, p=p, sketch=sketch, verbose=False)
             rlz.run(num_steps=k)
-            U_small = rlz.get_basis()
+            U_small = rlz.get_basis(k=num_col)
             val = np.linalg.norm(U_small.T @ v_sketched)
             data.append({"Method": "Randomized Arnoldi", "Value": val, "Run": run_id})
 
