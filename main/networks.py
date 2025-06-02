@@ -58,3 +58,13 @@ class LeNet(nn.Module):
 #         torch.save(model.state_dict(), save_path)
 #         print(f"Model saved to {save_path}")
 #     return model
+
+# X_train, Y_train = load_id_train_subset("mnist",flatten=True, device=device) # from run_util.py
+# model = train_and_save_model(
+#     model_fn=lambda: SmallNet(),  # or LeNet()
+#     X_train=X_train,
+#     Y_train=Y_train,
+#     save_path="models/mlp.pt",    # or "models/lenet.pt"
+#     epochs=1000,
+#     device=device
+# )

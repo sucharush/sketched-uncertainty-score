@@ -9,6 +9,10 @@ To generate the plots for synthetic data:
 ```bash
 python -m run_synthetic
 ```
+To generate the plots for ggn spectrum:
+```bash
+python -m run_ggn
+```
 To evaluate uncertainty-score-based AUROC performance using different basis methods:
 
 ```bash

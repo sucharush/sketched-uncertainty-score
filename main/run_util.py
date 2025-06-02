@@ -114,8 +114,6 @@ def run_experiment(config):
         )
 
         # === AUROC evaluation ===
-        # id_X = id_X[:config["ood_size"]]  # ensure same length
-        # evaluator = SLUEvaluator(model, Us, sketch, device=config["device"], flatten=config["flatten"])
         auroc = evaluator.compute_auroc(id_X, ood_X)
 
         print(f"[{config['name']}] AUROC = {auroc:.4f}")

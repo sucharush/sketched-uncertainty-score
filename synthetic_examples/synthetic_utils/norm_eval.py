@@ -155,49 +155,6 @@ def plot_comparison_grid(cfg, all_df, merged_df, **kwargs):
     plt.show()
 
 
-def plot_comparison_grid(cfg, merged_df, **kwargs):
-    k_fixed = cfg["k_fixed"]
-    s_fixed = cfg["s_fixed"]
-    type_map = make_type_map(k_fixed, s_fixed)
-    figsize = kwargs.get("figsize", (18, 8))
-    linewidth = kwargs.get("linewidth", 1.5)
-    palette = kwargs.get("palette", "deep")
-    title_prefix = kwargs.get("title_prefix", "")
-    suptitle = kwargs.get("suptitle", None)
-
-    # fig, axes = plt.subplots(1, 3, figsize=figsize, sharey=True)
-    fig, axes = plt.subplots(1, 2, figsize=figsize, sharey=True)
-
-    if suptitle:
-        fig.suptitle(suptitle, fontsize=20, y=1.05)
-    plt.tight_layout(rect=[0, 0.05, 1, 0.95])
-
-    # for i, t in enumerate(["sweep_s", "fixed_s", "s_eq_2k"]):
-    for i, t in enumerate(["sweep_s", "s_eq_2k"]):
-        sns.pointplot(
-            data=merged_df[merged_df["type"] == t],
-            x="xval",
-            y="AbsDiff",
-            hue="Method",
-            dodge=0.1,
-            errorbar="sd",
-            join=True,
-            markers="o",
-            linestyles="-",
-            linewidth=linewidth,
-            capsize=0.1,
-            palette=palette,
-            ax=axes[i],
-        )
-        axes[i].set_title(title_prefix + type_map[t][0], fontsize=20)
-        axes[i].set_xlabel(type_map[t][1], fontsize=15)
-        axes[i].set_ylabel(r"Error $|\|U^\top v\|_2 - \|U_S^\top (Sv)\|_2|$", fontsize=15)
-        axes[i].grid(True)
-
-    handles, labels = axes[0].get_legend_handles_labels()
-    # fig.legend(handles, labels, loc="lower center", ncol=len(labels), fontsize=10)
-    plt.tight_layout(rect=[0, 0.05, 1, 1])
-    plt.show()
 def plot_comparison_individual(cfg, merged_df, save_dir=None, **kwargs):
     k_fixed = cfg["k_fixed"]
     s_fixed = cfg["s_fixed"]
@@ -245,7 +202,7 @@ def plot_comparison_individual(cfg, merged_df, save_dir=None, **kwargs):
         ax.grid(True)
 
         plt.tight_layout()
-        # NEW: save if save_dir is provided
+        # save if save_dir is provided
         if save_dir is not None:
             # os.makedirs(save_dir, exist_ok=True)
             fname = os.path.join(save_dir, f"norm_{t}.pdf")
