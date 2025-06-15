@@ -37,10 +37,13 @@ ENV/
 
 # folders
 MNIST/
-data/
 models/
 ritzs/
 norms/
 configs.py
 old_util.py
 *.pdf
+
+data/FashionMNIST
+data/KMNIST
+data/MNIST

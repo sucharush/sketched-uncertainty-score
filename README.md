@@ -5,6 +5,13 @@ Exploratory repo for sketched Krylov methods applied to uncertainty estimation i
 Includes synthetic demos and **in-progress** uncertainty score experiments.
 
 ## How to 
+```bash
+git clone https://github.com/sucharush/sketched-uncertainty-score
+cd sketched-uncertainty-score
+python3.10 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 To generate the plots for synthetic data:
 ```bash
 python -m run_synthetic

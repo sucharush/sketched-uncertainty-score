@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import torch
 from main.networks import SmallNet, LeNet
-from main.run_util import run_experiment, SOLVER_MAP
+from main.run_util import run_experiment, SOLVER_MAP, prepare_datasets
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -54,6 +54,7 @@ def run_and_report(model_key, solver, steps, ood_name, n_runs=5):
 
 
 if __name__ == "__main__":
+    prepare_datasets()
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, required=True, choices=["mlp", "lenet"])
     parser.add_argument(

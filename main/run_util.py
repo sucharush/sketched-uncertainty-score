@@ -42,6 +42,25 @@ def load_id_train_subset(name, flatten=True, device="cpu"):
 
     return X.to(device), Y.to(device)
 
+def save_id_train_subset(name, flatten=True, n_samples=2000, path="data/id_train_subset.pt", device="cpu"):
+    X, Y = load_dataset(name, flatten=flatten, train=True, batch_size=n_samples, device=device)
+    torch.save({"X": X, "Y": Y}, path)
+    print(f"Saved {n_samples} samples from {name} to {path}")
+    
+def prepare_datasets():
+    dataset_info = {
+        "FashionMNIST": "data/id_train_fashion.pt",
+        "KMNIST": "data/id_train_kmnist.pt",
+        "MNIST": "data/id_train_mnist.pt"
+    }
+
+    for name, path in dataset_info.items():
+        if not os.path.exists(path):
+            print(f"[INFO] Generating ID subset for {name} ...")
+            save_id_train_subset(name, flatten=False, n_samples=2000, path=path)
+        else:
+            print(f"[INFO] Dataset for {name} already exists at {path}, skipping.")
+
 def build_solver(method, ggn: GGNMatVecOperator, num_params, steps):
     s = 2 * steps
     if method == "sl":
